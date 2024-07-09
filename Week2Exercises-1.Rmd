@@ -1,0 +1,170 @@
+---
+title: "Week 2 Exercises"
+author: "Your Name Here"
+date: "May 14, 2022"
+output: pdf_document
+---
+
+Please complete all exercises below. You may use stringr, lubridate, or the forcats library. 
+
+Place this at the top of your script:
+library(stringr)
+library(lubridate)
+library(forcats)
+
+# Exercise 1
+Read the sales_pipe.txt file into an R data frame as sales. 
+
+```{r}
+
+library(stringr)
+library(lubridate)
+library(forcats)
+
+sales <- read.delim("C:\\Users\\Nhegg\\OneDrive\\Documents\\Database\\Merrimack College - Nick Masters\\DSE5002\\Module_1_fork\\DSE5002_Module2\\sales_pipe.txt", stringsAsFactors = FALSE, sep = "|")
+
+
+```
+
+# Exercise 2
+You can extract a vector of columns names from a data frame using the colnames() function. Notice the first column has some odd characters. Change the column name for the FIRST column in the sales date frame to Row.ID. 
+
+**Note: You will need to assign the first element of colnames to a single character.**
+
+```{r}
+colnames(sales)[1] <- "Row.ID"
+
+
+```
+
+# Exercise 3
+Convert both Ship.Date and Order.Date to date vectors within the sales data frame. What is the number of days between the most recent order and the oldest order?
+How many years is that?
+How many weeks?
+
+**Note: Use lubridate**
+
+```{r}
+library(lubridate)
+library(dplyr)
+
+# Ensure the date columns are in character format before parsing
+sales$Ship.Date <- as.character(sales$Ship.Date)
+sales$Order.Date <- as.character(sales$Order.Date)
+
+# Convert Ship.Date and Order.Date to Date vectors
+sales$Ship.Date <- ymd(sales$Ship.Date)
+sales$Order.Date <- ymd(sales$Order.Date)
+
+# Identify problematic dates
+invalid_ship_dates <- sales %>% filter(is.na(Ship.Date)) %>% select(Ship.Date)
+invalid_order_dates <- sales %>% filter(is.na(Order.Date)) %>% select(Order.Date)
+
+# Print invalid dates for inspection
+print("Invalid Ship.Date values:")
+print(invalid_ship_dates)
+print("Invalid Order.Date values:")
+print(invalid_order_dates)
+
+# Filter out rows with invalid dates
+sales <- sales %>% filter(!is.na(Ship.Date) & !is.na(Order.Date))
+
+# Calculate the number of days between the most recent and oldest order
+days_between <- as.numeric(difftime(max(sales$Order.Date), min(sales$Order.Date), units = "days"))
+
+# Calculate the number of years and weeks
+years_between <- days_between / 365
+weeks_between <- days_between / 7
+
+# Print the results
+days_between
+years_between
+weeks_between
+
+
+```
+
+
+# Exercise 4
+What is the average number of days it takes to ship an order?
+
+```{r}
+average_days_to_ship <- mean(difftime(sales$Ship.Date, sales$Order.Date, units = "days"))
+average_days_to_ship
+
+
+```
+
+
+# Exercise 5
+How many customers have the first name Bill?
+You will need to split the customer name into first and last name segments and then use a regular expression to match the first name bill. Use the length() function to determine the number of customers with the first name Bill in the sales data. 
+
+```{r}
+customer_names <- str_split(sales$Customer.Name, " ", simplify = TRUE)
+first_names <- customer_names[, 1]
+number_of_bills <- sum(str_to_lower(first_names) == "bill")
+number_of_bills
+
+
+```
+
+# Exercise 6
+How many mentions of the word 'table' are there in the Product.Name column? 
+**Note you can do this in one line of code**
+
+```{r}
+table_mentions <- sum(str_detect(sales$Product.Name, regex("table", ignore_case = TRUE)))
+table_mentions
+
+
+```
+
+# Exercise 7
+Create a table of counts for each state in the sales data. The counts table should be ordered alphabetically from A to Z. 
+
+```{r}
+state_counts <- table(sales$State)
+state_counts <- sort(state_counts)
+state_counts
+
+
+```
+
+# Exercise 8
+Create an alphabetically ordered barplot for each sales Category in the State of Texas. 
+
+```{r}
+library(ggplot2)
+
+texas_sales <- sales[sales$State == "Texas", ]
+ggplot(texas_sales, aes(x = fct_reorder(Category, Category, .fun = length))) +
+  geom_bar() +
+  labs(title = "Sales Categories in Texas", x = "Category", y = "Count") +
+  theme_minimal()
+
+```
+
+# Exercise 9
+Find the average profit by region.
+**Note: You will need to use the aggregate() function to do this. To understand how the function works type ?aggregate in the console.**
+
+```{r}
+average_profit_by_region <- aggregate(Profit ~ Region, data = sales, FUN = mean)
+average_profit_by_region
+
+
+```
+
+# Exercise 10
+Find the average profit by order year. 
+**Note: You will need to use the aggregate() function to do this. To understand how the function works type ?aggregate in the console.**
+
+```{r}
+sales$Order.Year <- year(sales$Order.Date)
+average_profit_by_year <- aggregate(Profit ~ Order.Year, data = sales, FUN = mean)
+average_profit_by_year
+
+
+```
+
