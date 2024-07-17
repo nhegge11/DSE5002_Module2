@@ -1,7 +1,7 @@
 ---
 title: "Week 2 Exercises"
-author: "Your Name Here"
-date: "May 14, 2022"
+author: "Nick Hegge"
+date: "July 11, 2024"
 output: pdf_document
 ---
 
@@ -21,7 +21,9 @@ library(stringr)
 library(lubridate)
 library(forcats)
 
-sales <- read.delim("C:\\Users\\Nhegg\\OneDrive\\Documents\\Database\\Merrimack College - Nick Masters\\DSE5002\\Module_1_fork\\DSE5002_Module2\\sales_pipe.txt", stringsAsFactors = FALSE, sep = "|")
+data <- read.csv("C:/Users/Nhegg/OneDrive/Documents/Database/Merrimack College - Nick Masters/DSE5002/Module_1_fork/DSE5002_Module2/sales_pipe2.csv",
+                 stringsAsFactors = FALSE, fileEncoding = "latin1")
+
 
 
 ```
@@ -32,7 +34,7 @@ You can extract a vector of columns names from a data frame using the colnames()
 **Note: You will need to assign the first element of colnames to a single character.**
 
 ```{r}
-colnames(sales)[1] <- "Row.ID"
+colnames(data)[1] <- "Row.ID"
 
 
 ```
@@ -45,41 +47,23 @@ How many weeks?
 **Note: Use lubridate**
 
 ```{r}
-library(lubridate)
-library(dplyr)
 
-# Ensure the date columns are in character format before parsing
-sales$Ship.Date <- as.character(sales$Ship.Date)
-sales$Order.Date <- as.character(sales$Order.Date)
+# Convert Ship.Date and Order.Date to date vectors
+data$Ship.Date <- as_date(data$Ship.Date, format = "%m/%d/%Y")
+data$Order.Date <- as_date(data$Order.Date, format = "%m/%d/%Y")
 
-# Convert Ship.Date and Order.Date to Date vectors
-sales$Ship.Date <- ymd(sales$Ship.Date)
-sales$Order.Date <- ymd(sales$Order.Date)
+# Calculate number of days between the most recent order and the oldest order
+days_diff <- as.numeric(difftime(max(data$Order.Date), min(data$Order.Date), units = "days"))
 
-# Identify problematic dates
-invalid_ship_dates <- sales %>% filter(is.na(Ship.Date)) %>% select(Ship.Date)
-invalid_order_dates <- sales %>% filter(is.na(Order.Date)) %>% select(Order.Date)
+# Calculate number of years and weeks
+years_diff <- days_diff / 365.25
+weeks_diff <- days_diff / 7
 
-# Print invalid dates for inspection
-print("Invalid Ship.Date values:")
-print(invalid_ship_dates)
-print("Invalid Order.Date values:")
-print(invalid_order_dates)
+# Print
+cat("Number of days between the most recent order and the oldest order:", days_diff, "days\n")
+cat("Number of years:", years_diff, "years\n")
+cat("Number of weeks:", weeks_diff, "weeks\n")
 
-# Filter out rows with invalid dates
-sales <- sales %>% filter(!is.na(Ship.Date) & !is.na(Order.Date))
-
-# Calculate the number of days between the most recent and oldest order
-days_between <- as.numeric(difftime(max(sales$Order.Date), min(sales$Order.Date), units = "days"))
-
-# Calculate the number of years and weeks
-years_between <- days_between / 365
-weeks_between <- days_between / 7
-
-# Print the results
-days_between
-years_between
-weeks_between
 
 
 ```
@@ -89,8 +73,11 @@ weeks_between
 What is the average number of days it takes to ship an order?
 
 ```{r}
-average_days_to_ship <- mean(difftime(sales$Ship.Date, sales$Order.Date, units = "days"))
-average_days_to_ship
+# Average
+average_days_to_ship <- mean(data$Ship.Date - data$Order.Date, na.rm = TRUE)
+
+# Print
+cat("Average number of days it takes to ship an order:", round(average_days_to_ship, 2), "days\n")
 
 
 ```
@@ -101,10 +88,18 @@ How many customers have the first name Bill?
 You will need to split the customer name into first and last name segments and then use a regular expression to match the first name bill. Use the length() function to determine the number of customers with the first name Bill in the sales data. 
 
 ```{r}
-customer_names <- str_split(sales$Customer.Name, " ", simplify = TRUE)
-first_names <- customer_names[, 1]
-number_of_bills <- sum(str_to_lower(first_names) == "bill")
-number_of_bills
+# Split customer name into first and last name
+data$Customer.FirstName <- word(data$Customer.Name, 1)
+
+# Find 'Bill'
+bill_customers <- str_detect(data$Customer.FirstName, regex("^Bill$", ignore_case = TRUE))
+
+# Count customers with the first name Bill
+number_of_bills <- length(which(bill_customers))
+
+# Print
+cat("Number of customers with the first name Bill:", number_of_bills, "\n")
+
 
 
 ```
@@ -114,8 +109,12 @@ How many mentions of the word 'table' are there in the Product.Name column?
 **Note you can do this in one line of code**
 
 ```{r}
-table_mentions <- sum(str_detect(sales$Product.Name, regex("table", ignore_case = TRUE)))
-table_mentions
+# Count 'table' in the Product.Name column
+table_mentions <- sum(str_count(data$Product.Name, regex("table", ignore_case = TRUE)))
+
+# Print
+cat("Number of mentions of the word 'table' in the Product.Name column:", table_mentions, "\n")
+
 
 
 ```
@@ -124,9 +123,16 @@ table_mentions
 Create a table of counts for each state in the sales data. The counts table should be ordered alphabetically from A to Z. 
 
 ```{r}
-state_counts <- table(sales$State)
-state_counts <- sort(state_counts)
-state_counts
+# table of counts for each state
+state_counts <- table(data$State)
+
+# Convert to order alphabetically
+state_counts_df <- as.data.frame(state_counts)
+state_counts_df <- state_counts_df[order(state_counts_df$Var1), ]
+
+# Print
+print(state_counts_df)
+
 
 
 ```
@@ -137,11 +143,20 @@ Create an alphabetically ordered barplot for each sales Category in the State of
 ```{r}
 library(ggplot2)
 
-texas_sales <- sales[sales$State == "Texas", ]
-ggplot(texas_sales, aes(x = fct_reorder(Category, Category, .fun = length))) +
+# Filter State of Texas
+texas_data <- subset(data, State == "Texas")
+
+# Create the barplot
+ggplot(texas_data, aes(x = fct_inorder(Category))) +
   geom_bar() +
-  labs(title = "Sales Categories in Texas", x = "Category", y = "Count") +
-  theme_minimal()
+  labs(title = "Sales Categories in Texas",
+       x = "Category",
+       y = "Count") +
+  theme_minimal() +
+  coord_flip()
+
+
+
 
 ```
 
@@ -150,8 +165,12 @@ Find the average profit by region.
 **Note: You will need to use the aggregate() function to do this. To understand how the function works type ?aggregate in the console.**
 
 ```{r}
-average_profit_by_region <- aggregate(Profit ~ Region, data = sales, FUN = mean)
-average_profit_by_region
+# Calculate the average profit by region
+average_profit_by_region <- aggregate(Profit ~ Region, data = data, FUN = mean, na.rm = TRUE)
+
+# Print
+print(average_profit_by_region)
+
 
 
 ```
@@ -161,9 +180,14 @@ Find the average profit by order year.
 **Note: You will need to use the aggregate() function to do this. To understand how the function works type ?aggregate in the console.**
 
 ```{r}
-sales$Order.Year <- year(sales$Order.Date)
-average_profit_by_year <- aggregate(Profit ~ Order.Year, data = sales, FUN = mean)
-average_profit_by_year
+# Extract the order year from Order.Date
+data$Order.Year <- year(data$Order.Date)
+
+# Average
+average_profit_by_year <- aggregate(Profit ~ Order.Year, data = data, FUN = mean, na.rm = TRUE)
+
+# Print
+print(average_profit_by_year)
 
 
 ```
